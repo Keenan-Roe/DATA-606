@@ -79,7 +79,7 @@ mean(arbuthnot$boy_ratio)
 max(arbuthnot$boy_ratio)
 ```
 
-### Exercise 3 
+### Exercise 3
 
 When looking at the ratio of boys to girls I can see that it is consistently above the 50 percent mark with the mean being 51.6% and reaching a peak of 53.6%
 
@@ -107,7 +107,7 @@ names(present)
 
 The years included in the dataset are `{r} years`, the dimensions of the dataset are `{r} dim(present)`, and the names of the columns in the dataset are `{r} names(present)`
 
-### Exercise 5 
+### Exercise 5
 
 ```{r}
 #| label: exercise-5
@@ -134,7 +134,7 @@ ggplot( data = present, aes( x = year, y = boys_ratio)) +
 
 The margin in which boys are born more often than girls is much lower, but it seems to show a trend that boys have continued to be born slightly more than girls.
 
-### Exercise 7 
+### Exercise 7
 
 ```{r}
 #| label: exercise-7
