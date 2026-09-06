@@ -1,0 +1,13 @@
+---
+title: "Lab 2"
+format: html
+editor: visual
+---
+
+```{r}
+#| title: load-libraries
+
+library(tidyverse)
+library(openintro)
+
+```
