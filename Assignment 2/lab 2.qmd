@@ -6,8 +6,174 @@ editor: visual
 
 ```{r}
 #| title: load-libraries
+#| echo: false
+#| message: false
 
 library(tidyverse)
 library(openintro)
 
 ```
+
+# The Data
+
+```{r}
+#| title: the-data
+
+data(nycflights)
+
+names(nycflights)
+
+glimpse(nycflights)
+
+
+```
+
+## Analysis
+
+```{r}
+#| label: Analysis 
+
+ggplot(data = nycflights, aes(x = dep_delay)) +
+  geom_histogram()
+
+ggplot(data = nycflights, aes(x = dep_delay)) +
+  geom_histogram(binwidth = 15)
+
+ggplot(data = nycflights, aes(x = dep_delay)) +
+  geom_histogram(binwidth = 150)
+```
+
+### Exercise 1
+
+The original histogram does not represent the 0-400 part of the graph very well and shows a lot of blank space that is not able to properly represent the less frequent delays because the proportion of each bin is so skewed.
+
+```{r}
+#| label: Anlysis-cont
+
+lax_flights <- nycflights |> 
+  filter(dest == "LAX")
+ggplot(data = lax_flights, aes(x = dep_delay)) +
+  geom_histogram()
+
+
+lax_flights |> 
+  summarise(mean_dd   = mean(dep_delay), 
+            median_dd = median(dep_delay), 
+            n         = n())
+
+sfo_feb_flights <- nycflights |>
+  filter(dest == "SFO", month == 2)
+
+length(sfo_feb_flights$year)
+```
+
+### Exercise 2
+
+There are `{r} length(sfo_feb_flights$year)` flights that are SFO flights that were delayed in February.
+
+```{r}
+#| label: exercise-3-code
+
+ggplot(data = sfo_feb_flights, aes(x = arr_delay)) + 
+  geom_histogram()
+
+
+sfo_feb_flights |> 
+  summarise( mean_SFO_feb = mean(arr_delay), 
+             median_SFO_feb = median(arr_delay), 
+             count = n() )
+```
+
+### Exercise 3
+
+When looking at the histogram and summary statistics of the arrival delays for the SFO flight in February it is apparent that the flights commonly arrive earlier than expected rather than actually being delayed.
+
+```{r}
+#| label: analysis-cont-1
+
+sfo_feb_flights |>
+  group_by(origin) |>
+  summarise(median_dd = median(dep_delay), iqr_dd = IQR(dep_delay), n_flights = n())
+
+sfo_feb_flights |> 
+  group_by(carrier) |> 
+  summarize( std_ad = sd(arr_delay), median_ad = median(arr_delay), iqr_ad = IQR(arr_delay), n_flights = n())
+```
+
+### Exercise 4 
+
+Looking at the standard deviation we see that UA has the highest variability for departure delays.
+
+```{r}
+#| label: analysis-cont-2
+
+nycflights |> 
+  group_by(month) |> 
+  summarise(mean_dd = mean(dep_delay)) |> 
+  arrange(desc(mean_dd))
+
+```
+
+### Exercise 5
+
+When looking at the mean you take into account all outlier delays meaning one substantial delay on an otherwise perfect record could heavily skew the data while the median does not give as much weight to outliers and could potentially give a slightly more accurate representation of what one might expect for an average expected departure delay. One should take both into account when determining expected outcomes.
+
+```{r}
+#| label: on-time-dep
+
+nycflights <- nycflights |> 
+  mutate( dep_type = ifelse( dep_delay < 5, "on time", "delayed"))
+
+nycflights |> 
+  group_by(origin) |> 
+  summarise( ot_dep_rate = sum(dep_type == "on time") / n()) |>
+  arrange(desc(ot_dep_rate))
+
+```
+
+### Exercise 6
+
+If I were to pick an airport based on the on time departure rate I would pick LGA
+
+```{r}
+#| label: on-time-cont
+
+ggplot(data = nycflights, aes(x = origin, fill = dep_type)) +
+  geom_bar()
+
+
+nycflights <- nycflights |> 
+  mutate( avg_speed = distance / (air_time / 60) )
+
+```
+
+### Exercise 7 
+
+The average speed of each flight has been added to the avg_speed column of the dataset nycflights.
+
+### Exercise 8
+
+```{r}
+#| label: scatterplot
+
+ggplot( data = nycflights, aes( x = distance, y = avg_speed)) + 
+  geom_point()
+
+```
+
+The average speed remains relatively consistent and appears to take on a logarithmic shape. The speed generally increases as the distance becomes larger, but will even out between 400 and 500 mph with some outliers.
+
+### Exercise 9
+
+```{r}
+#| label: final-plot
+
+top_airline_df <- nycflights |> 
+  filter( carrier == "AA" | carrier == "DL" | carrier == "UA" )
+
+ggplot( top_airline_df,  aes(x = dep_delay, y = arr_delay, color=carrier) ) +
+  geom_point()
+
+```
+
+Based on the graph one can expect to be up to 50 minutes late from departure to still arrive to the destination on time. In order to find a slightlymore accurate estimate I could take the dep delays between 0 and 100 and graph that to view the clustering more closely.
