@@ -1,0 +1,102 @@
+---
+title: "Probability"
+format: pdf
+editor: visual
+---
+
+# Probability 
+
+```{r}
+#| title: load-packages
+#| message: false
+
+library(tidyverse)
+library(openintro)
+
+glimpse(kobe_basket)
+```
+
+## Exercise 1
+
+A streak of length one means that there was one successful attempt while a streak of zero means that scoring attempt was unsuccessful. However, it is important to note that the first miss after the streak does not count for counting the next streak. There should only be one miss in any streak.
+
+```{r}
+#| title: visuals
+
+kobe_streak <- calc_streak(kobe_basket$shot)
+
+ggplot(data = kobe_streak, aes( x = length)) + 
+  geom_bar()
+```
+
+## Exercise 2
+
+Kobe typically had a streak length of 0 indicating he missed far more often than he hit and his longest streak was 4. This also indicates that he missed consecutively often since the end of a streak does not count towards a streak of 0.
+
+# Simulations in R
+
+```{r}
+#| title: simulations
+
+coin_outcomes <- c("heads", "tails")
+sample(coin_outcomes, size = 1, replace = TRUE)
+
+sim_fair_coin <- sample( coin_outcomes, size = 100, replace = TRUE)
+
+sim_fair_coin
+
+table(sim_fair_coin)
+
+set.seed(824)
+
+sim_unfair_coin <- sample( coin_outcomes, size = 100, replace = TRUE, prob=c(.2,.8))
+
+table(sim_unfair_coin)
+```
+
+## Exercise 3
+
+When simulating the weighted coin toss 26 instances of heads was generated compared to 74 tails. I chose the seed 824 by using kobe bryant's two jersey numbers
+
+```{r}
+#| title: independence
+
+shot_outcomes <- c("H", "M")
+set.seed(824)
+sim_basket <- sample(shot_outcomes, size = 133, replace = TRUE, prob = c(.45,.55))
+table(sim_basket)
+```
+
+## Exercise 4
+
+For us to change the shot percentage we will need to change the probability of the hit in our sample. In addition, I assigned the same seed for reproducibility.
+
+# More Practice
+
+## Exercise 5
+
+```{r}
+#| title: ex-5
+
+sim_streak <- calc_streak(sim_basket)
+
+```
+
+## Exercise 6
+
+```{r}
+#| title: ex-6
+
+ggplot(data = sim_streak, aes( x = length)) + 
+  geom_bar()
+```
+
+The typical streak for an independent shooter is 0 followed by a streak of 1. The longest streak for this independent shooter is 6 compared to kobe's 4.
+
+## Exercise 7
+
+If I were to run the simulation again, or several times, I would expect the results to be very similar when the seed is not set. Since we are using static percentages we would expect to see a very similar result with most streaks being 0 and some variance on the highest streak being slightly higher or slightly lower.
+
+## Exercise 8 
+
+Comparing the streak simulation to kobe's distribution we can see that kobe is actually much better at converting to a streak of one after failed attempts rather than having a "hot hand" The simulation showed many more streaks as well as a slightly higher streak. Kobe's model actually showed much more consistency rather than a hot hand of any kind.
