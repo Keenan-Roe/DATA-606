@@ -1,6 +1,6 @@
 ---
 title: "Probability"
-format: pdf
+format: html
 editor: visual
 ---
 
