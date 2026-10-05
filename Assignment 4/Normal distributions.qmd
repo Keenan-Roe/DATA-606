@@ -1,0 +1,172 @@
+---
+title: "Distribution of Random Variables"
+format: pdf
+editor: visual
+---
+
+# The Normal Distribution 
+
+```{r}
+#| title: packages 
+
+library(tidyverse)
+library(openintro)
+
+data("fastfood", package='openintro')
+head(fastfood)
+
+mcdonalds <- fastfood |>
+  filter(restaurant == "Mcdonalds")
+dairy_queen <- fastfood |>
+  filter(restaurant == "Dairy Queen")
+
+
+```
+
+## Exercise 1
+
+```{r}
+#| title: plots
+
+fat_calories <- fastfood |> 
+  filter( restaurant %in% c("Mcdonalds", "Dairy Queen"))
+
+ggplot( fat_calories, aes(x = cal_fat)) +
+  geom_histogram( bins = 30, fill = "steelblue", color = "white")
+
+```
+
+```{r}
+#| title: normal-dist
+
+
+dqmean <- mean(dairy_queen$cal_fat)
+dqsd   <- sd(dairy_queen$cal_fat)
+
+ggplot(data = dairy_queen, aes(x = cal_fat)) +
+  geom_blank() +
+  geom_histogram(aes(y = ..density..)) +
+  stat_function(fun = dnorm, args = c(mean = dqmean, sd = dqsd), col = "tomato")
+
+```
+
+## Exercise 2
+
+Based on the line the data does seem to follow a close to normal distribution.
+
+```{r}
+#| title: evaluation
+
+
+ggplot(data = dairy_queen, aes(sample = cal_fat)) + 
+  geom_line(stat = "qq") +
+  stat_qq_line()
+
+
+sim_norm <- rnorm(n = nrow(dairy_queen), mean = dqmean, sd = dqsd)
+```
+
+## Exercise 3
+
+```{r}
+#| title: qqtest
+
+ggplot( data = NULL, aes(sample = sim_norm))+
+  geom_line(stat = "qq") +
+  stat_qq_line()
+
+```
+
+```{r}
+#| title: cont
+
+qqnormsim(sample = cal_fat, data = dairy_queen)
+
+```
+
+## Exercise 4
+
+Yes, the simulation looks similar to the plot created for the simulated data and brings us closer to showing that the the calories follow a normal distribution.
+
+## Exercise 5
+
+```{r}
+#| title: mcdonalds-dist
+
+qqnormsim( sample = cal_fat, data = mcdonalds)
+
+```
+
+# Normal Probabilities 
+
+```{r}
+#| title: normals 
+
+1 - pnorm(q = 600, mean = dqmean, sd = dqsd)
+
+dairy_queen %>% 
+  filter(cal_fat > 600) %>%
+  summarise(percent = n() / nrow(dairy_queen))
+
+```
+
+## Exercise 6
+
+Two questions we can ask are what is the probability that a Taco Bell item is over 400 calories and what is the probability that an item at burger king is under 300 calories
+
+```{r}
+#| title: prob-question
+
+taco <- fastfood %>% filter(restaurant == "Taco Bell")
+bk   <- fastfood %>% filter(restaurant == "Burger King")
+
+tb_mean <- mean(taco$calories)
+tb_sd   <- sd(taco$calories)
+
+q1_theoretical    <- 1 - pnorm(400, mean = tb_mean, sd = tb_sd)
+q1_empirical <- mean(taco$calories > 400)   
+
+bk_mean <- mean(bk$cal_fat)
+bk_sd   <- sd(bk$cal_fat)
+
+q2_theoretical   <- pnorm(300, mean = bk_mean, sd = bk_sd)
+q2_empirical <- mean(bk$cal_fat < 300)
+```
+
+The theoretical probability for taco bell is `r  q1_theoretical` while the emperical is `r q1_empirical` compared to the burger king theoretical and emperical number being `r q2_theoretical` ,`r q2_empirical` respectively. The burger king probability is much closer to the theoretical probability
+
+## Exercise 7 
+
+```{r}
+#| title: normals
+
+ggplot(fastfood, aes(sample = sodium)) +
+  geom_point(stat = "qq") +
+  stat_qq_line() +
+  facet_wrap(~ restaurant, scales = "free_y") +
+  labs(title = "Normal probability plots of sodium by restaurant",
+       x = "Theoretical quantiles", y = "Sodium (mg)")
+
+```
+
+it is tough to tell which restaurant is the closest to normally distributed for sodium content, but it looks like Chick Fil-A is the nearest to the line with just two larger outliers. Ultimately, it may be Burger King that is the closest to normally distributed.
+
+## Exercise 8
+
+These distributions appear to be stepwise due to a uniform amount of salt being used in the recipe. Each restaurant is likely to use a number like 250 mgs as a unit for each increase in salt.
+
+## Exercise 9 
+
+```{r}
+#| title: carbs
+
+ggplot(data = mcdonalds, aes(sample = total_carb)) +
+  geom_point(stat = "qq") +
+  stat_qq_line()
+
+ggplot(data = mcdonalds, aes(x = total_carb)) +
+  geom_histogram(binwidth = 10, fill = "steelblue", color = "white")
+
+```
+
+It looks like the carbohydrate of mcdonalds is right skewed with most of the clustering being on the left side of the histogram.
