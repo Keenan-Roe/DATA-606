@@ -1,0 +1,239 @@
+---
+title: "Sampling distributions"
+format: pdf
+editor: visual
+---
+
+## Introduction
+
+```{r}
+#| title: load-packages
+#| message: False 
+
+
+library(tidyverse)
+library(openintro)
+library(infer)
+
+global_monitor <- tibble(
+  scientist_work = c(rep("Benefits", 80000), rep("Doesn't benefit", 20000))
+)
+
+ggplot(global_monitor, aes(x = scientist_work)) +
+  geom_bar() +
+  labs(
+    x = "", y = "",
+    title = "Do you believe that the work scientists do benefit people like you?"
+  ) +
+  coord_flip() 
+
+global_monitor %>%
+  count(scientist_work) %>%
+  mutate(p = n /sum(n))
+
+samp1 <- global_monitor %>%
+  sample_n(50)
+
+samp1 |> 
+  count(scientist_work) |>
+  mutate(p = n/sum(n))
+```
+
+## Exercise 1
+
+The sample is very similar to the distribution of responses with only a 6 percent differential. While it is close to the same, a sample of any particular distribution will only represent a smaller portion of the data and we would need a large group of samples to get a more accurate view of the data.
+
+```{r}
+#| title: samples-cont
+
+
+samp1 %>%
+  count(scientist_work) %>%
+  mutate(p_hat = n /sum(n))
+
+```
+
+## Exercise 2
+
+Another random sample would be expected to be very similar to the proportion we saw both from the given distribution and the previously produced sample.
+
+```{r}
+#| title: new-sample
+
+samp2 <- global_monitor %>%
+  sample_n(50)
+
+samp2 %>%
+  count(scientist_work) %>%
+  mutate(p_hat = n /sum(n))
+
+```
+
+## Exercise 3
+
+When taking larger samples from the general population will be much closer to the data in the original distribution.
+
+```{r}
+#| title: samp-cont-2
+
+sample_props50 <- global_monitor %>%
+  rep_sample_n(size = 50, reps = 15000, replace = TRUE) %>%
+  count(scientist_work) %>%
+  mutate(p_hat = n /sum(n)) %>%
+  filter(scientist_work == "Doesn't benefit")
+
+ggplot(data = sample_props50, aes(x = p_hat)) +
+  geom_histogram(binwidth = 0.02) +
+  labs(
+    x = "p_hat (Doesn't benefit)",
+    title = "Sampling distribution of p_hat",
+    subtitle = "Sample size = 50, Number of samples = 15000"
+  )
+
+```
+
+## Exercise 4
+
+There will be 15000 elements in the distribution all representing sample proportions in this case. We specifically expect the actual population proportion to be represented by the middle of the normally distributed proportions.
+
+```{r}
+#| title: interlude
+
+global_monitor %>%
+  sample_n(size = 50, replace = TRUE) %>%
+  count(scientist_work) %>%
+  mutate(p_hat = n /sum(n)) %>%
+  filter(scientist_work == "Doesn't benefit")
+
+```
+
+## Exercise 5
+
+```{r}
+#| title: sample-size-10
+
+sample_props_small <- global_monitor |>
+  rep_sample_n(size = 10, reps = 25, replace = TRUE) |>
+  count(scientist_work) |>
+  mutate(p_hat = n /sum(n)) |>
+  filter(scientist_work == "Doesn't benefit")
+
+print(sample_props_small)
+
+ggplot(data = sample_props_small, aes(x = p_hat)) +
+  geom_histogram(binwidth = 0.02) +
+  labs(
+    x = "p_hat (Doesn't benefit)",
+    title = "Sampling distribution of p_hat",
+    subtitle = "Sample size = 10, Number of samples = 25"
+  )
+```
+
+this creates a sample of `r length(sample_props_small$n)` which may not always be 25 because we are filtering out all instances where "Doesn't benefit" is not in the dataset. Each observation only represents the proportion of people in that sample that stated science does not benefit them.
+
+```{r}
+#| title: sample-size 
+
+ggplot(data = sample_props50, aes(x = p_hat)) +
+  geom_histogram(binwidth = 0.02)
+
+```
+
+## Exercise 6
+
+```{r}
+#| title: more-samples
+
+
+# I did not see an app so I will do these manually 
+
+sample1 <- global_monitor |>
+  rep_sample_n(size = 10, reps = 5000, replace = TRUE) |>
+  count(scientist_work) |>
+  mutate(p_hat = n /sum(n)) |>
+  filter(scientist_work == "Doesn't benefit")
+
+sample2 <- global_monitor |>
+  rep_sample_n(size = 50, reps = 5000, replace = TRUE) |>
+  count(scientist_work) |>
+  mutate(p_hat = n /sum(n)) |>
+  filter(scientist_work == "Doesn't benefit")
+
+sample3 <- global_monitor |>
+  rep_sample_n(size = 100, reps = 5000, replace = TRUE) |>
+  count(scientist_work) |>
+  mutate(p_hat = n /sum(n)) |>
+  filter(scientist_work == "Doesn't benefit")
+
+ggplot(data = sample1, aes(x = p_hat)) +
+  geom_histogram(binwidth = 0.02)
+
+ggplot(data = sample2, aes(x = p_hat)) +
+  geom_histogram(binwidth = 0.02)
+
+ggplot(data = sample3, aes(x = p_hat)) +
+  geom_histogram(binwidth = 0.02)
+
+```
+
+Each observation represents the proportion of people that stated Science does not help them. The mean and standard error get closer to the total population and the shape becomes more normal as the samples become larger.
+
+## Exercise 7
+
+```{r}
+#| title: more-practice
+
+ben1 <- global_monitor |>
+  sample_n(15) |>
+  count(scientist_work) |>
+  mutate(p = n /sum(n))
+
+print(ben1)
+```
+
+The proportion of people that think science benefits them is `r``print(ben1[1,3])` and the best point estimate of the population would be .8
+
+## Exercise 8
+
+```{r}
+#| title: more-practice-cont
+
+sample_props15 <- global_monitor |> 
+  rep_sample_n(size = 15, reps = 2000, replace = TRUE) |>
+  count(scientist_work) |>
+  mutate(p = n /sum(n)) |>
+  filter( scientist_work == "Benefits")
+
+ggplot(data = sample_props15, aes(x = p)) +
+  geom_histogram(binwidth = 0.02)
+
+# the whole population would be below, but I could find the mean of sample_props15 for the total proportion of the sample 
+
+global_monitor_1 <- global_monitor |>
+  count( scientist_work) |>
+  mutate(p = n / sum(n)) |>
+  filter(scientist_work == "Benefits")
+```
+
+Based on the above graph I would conclude that .8 percent of the population finds the work scientists do benefits them. In the sample the population proportion is `r global_monitor_1[1,"p"]`
+
+## Exercise 9
+
+```{r}
+#| title: final
+
+sample_props150 <- global_monitor |> 
+  rep_sample_n(size = 150, reps = 2000, replace = TRUE) |>
+  count(scientist_work) |>
+  mutate(p = n /sum(n)) |>
+  filter( scientist_work == "Benefits")
+
+ggplot(data = sample_props150, aes(x = p)) +
+  geom_histogram(binwidth = 0.02)
+```
+
+Comparing the two histograms, they both create a normal distribution. However, the larger n size distribution follows a normal distribution much more closely. Based on the graphs I would conclude the true proportion is .8.
+
+## Exercise 10 
+
+The smaller spread is with the larger n distribution. If I want to more often be closer to the true population mean I may want a smaller n value.

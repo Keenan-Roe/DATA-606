@@ -1,0 +1,165 @@
+---
+title: "Confidence Intervals"
+format: pdf
+editor: visual
+---
+
+## Getting Started 
+
+```{r}
+#| title: load-packages 
+#| message: False 
+
+library(tidyverse)
+library(openintro)
+library(infer)
+
+us_adults <- tibble(
+  climate_change_affects = c(rep("Yes", 62000), rep("No", 38000))
+)
+
+ggplot(us_adults, aes(x = climate_change_affects)) +
+  geom_bar() +
+  labs(
+    x = "", y = "",
+    title = "Do you think climate change is affecting your local community?"
+  ) +
+  coord_flip() 
+
+us_adults %>%
+  count(climate_change_affects) %>%
+  mutate(p = n /sum(n))
+
+n <- 60
+
+samp <- us_adults %>%
+  sample_n(size = n)
+
+
+samp1 <- us_adults |>
+  sample_n(size = n) |>
+  count(climate_change_affects) |>
+  mutate(p_hat = n /sum(n))
+
+ys <- samp1[2,3]
+```
+
+## Exercise 1 
+
+The total percentage of adults that think climate change affects their life is `r ys`
+
+## Exercise 2 
+
+I would expect other observations to be the different but similar to the number I produced due to random variance in the sample.
+
+```{r}
+#| title: confidence
+
+samp |>
+  specify(response = climate_change_affects, success = "Yes") |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "prop") |>
+  get_ci(level = 0.95)
+
+```
+
+## Exercise 3 
+
+The confidence interval is stating that we find at least 95 % of the statistics we are trying to observe. Otherwise called population parameters
+
+## Exercise 4
+
+One sample will not commonly capture the true population proportion. It will only be a proportion of the possible responses
+
+## Exercise 5 
+
+I would expect 95% of the proportions to fall within the interval because that is the confidence interval we are working with that will describe what will happen when running this test several times.
+
+## Exercise 6
+
+```{r}
+#| title: more-graphs
+
+true_p <- 0.62
+
+boot <- us_adults |>
+  specify(response = climate_change_affects, success = "Yes") |>
+  sample_n(size = 60) |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "prop") |>
+  get_ci(level = 0.95)
+
+```
+
+I would expect roughly 95% of the calculations to produce the true mean very closely. Any smaller variation would have to do with the random sampling
+
+## Exercise 7
+
+I would expect it to be narrower with a lower confidence interval because the cutoffs we are looking at moves inward on the normal distribution. A 90% would be more precise but it would only capture the true proportion 90% of the time.
+
+## Exercise 8
+
+```{r}
+#| title: conf-90
+
+boot_dist <- samp |>
+  specify(response = climate_change_affects, success = "Yes") |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "prop")
+
+ci_90 <- boot_dist |>
+  get_ci(level = 0.90, type = "percentile")
+
+lower_ci <- ci_90[1,1]
+upper_ci <- ci_90[1,2]
+
+ci_90
+
+
+visualize(boot_dist) +
+  shade_ci(endpoints = ci_90)
+
+```
+
+This means 90 percent of the proportions sampled falls between `r lower_ci` and `r upper_ci` meaning that between those two proportions represents The interval estimates a population parameter, the proportion of all US adults who say climate change affects their lives.
+
+## Exercise 9 
+
+If we use a confidence level of 90 percent we would expect that roughly 90 percent of the confidence intervals will include the true proportion which will be close to the same as the confidence interval
+
+## Exercise 10
+
+```{r}
+#| title: final-interval 
+
+boot_dist <- samp |>
+  specify(response = climate_change_affects, success = "Yes") |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "prop")
+
+ci_99 <- boot_dist |>
+  get_ci(level = 0.99, type = "percentile")
+
+ci_99
+
+
+bind_rows(
+  get_ci(boot_dist, level = 0.90) |> mutate(level = 0.90),
+  get_ci(boot_dist, level = 0.95) |> mutate(level = 0.95),
+  get_ci(boot_dist, level = 0.99) |> mutate(level = 0.99)
+) |>
+  mutate(width = upper_ci - lower_ci)
+
+visualize(boot_dist) + shade_ci(endpoints = ci_99)
+
+```
+
+with a confidence interval of 99 percent we would expect to see almost all of the samples to include the expected proportion.
+
+## Exercise 11
+
+The width of the interval gets more narrow as the sample size gets larger while smaller sample sizes give wider intervals
+
+## Exercise 12
+
+the more bootstrap samples used would not make the interval wider or narrower, but it would make the graph more stable.
