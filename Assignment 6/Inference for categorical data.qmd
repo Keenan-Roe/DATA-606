@@ -1,0 +1,219 @@
+---
+title: "Inference for categorical data"
+format: pdf
+editor: visual
+---
+
+## Introduction 
+
+```{r}
+#| title: load-packages
+
+library(tidyverse)
+library(openintro)
+library(infer)
+
+
+yrbss |>
+  count(text_while_driving_30d)
+
+
+```
+
+## Exercise 1
+
+```{r}
+#| title: e1
+
+yrbss |>
+  count(text_while_driving_30d)
+
+
+```
+
+## Exercise 2
+
+```{r}
+#| title: e2 
+
+
+no_helmet_text_daily <- yrbss %>%
+  filter(helmet_12m == "never") |> 
+  filter(text_while_driving_30d == "30")
+
+no_helmet_txters <- no_helmet_text_daily |> 
+  count()
+
+total_surveyed <- yrbss|> 
+  count()
+
+proportion <- no_helmet_txters[[1]] / total_surveyed[[1]] 
+```
+
+The total proportion of people who texted while driving everyday and have never worn helmets is `r proportion`
+
+## Inference on proportions 
+
+```{r}
+#| title: iop
+
+
+data('yrbss', package='openintro')
+no_helmet <- yrbss %>%
+  filter(helmet_12m == "never")
+
+no_helmet <- no_helmet %>%
+  mutate(text_ind = ifelse(text_while_driving_30d == "30", "yes", "no"))
+
+boot_dist <- no_helmet %>%
+  filter(!is.na(text_ind)) %>%
+  specify(response = text_ind, success = "yes") %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "prop") %>%
+  get_ci(level = 0.95)
+```
+
+## Exercise 3 
+
+```{r}
+#| title: error-rate
+
+boot_dist <- no_helmet |>
+  filter(!is.na(text_ind)) |>
+  specify(response = text_ind, success = "yes") |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "prop")
+
+ci <- boot_dist |>
+  get_ci(level = 0.95, type = "percentile")
+ci
+
+margin <- (ci$upper_ci - ci$lower_ci) / 2
+```
+
+The margin for error is `r margin`
+
+## Exercise 4
+
+```{r}
+#| title: two-others
+
+gender_data <- yrbss |>
+  filter(!is.na(gender))
+
+boot_gender <- gender_data |>
+  specify(response = gender, success = "female") |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "prop")
+
+ci_gender <- boot_gender |>
+  get_ci(level = 0.95, type = "percentile")
+ci_gender
+
+(ci_gender$upper_ci - ci_gender$lower_ci) / 2
+
+
+active_data <- yrbss |>
+  filter(!is.na(physically_active_7d)) |>
+  mutate(active_all_week = ifelse(physically_active_7d == 7, "yes", "no"))
+
+boot_active <- active_data |>
+  specify(response = active_all_week, success = "yes") |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "prop")
+
+ci_active <- boot_active |>
+  get_ci(level = 0.95, type = "percentile")
+ci_active
+
+
+(ci_active$upper_ci - ci_active$lower_ci) / 2
+```
+
+## Proportion and margin for error
+
+```{r}
+#| title: p&me
+
+n <- 1000
+
+p <- seq(from = 0, to = 1, by = 0.01)
+me <- 2 * sqrt(p * (1 - p)/n)
+
+dd <- data.frame(p = p, me = me)
+ggplot(data = dd, aes(x = p, y = me)) + 
+  geom_line() +
+  labs(x = "Population Proportion", y = "Margin of Error")
+
+.1 + 2*(sqrt(0.1 * 0.9 / 300))
+```
+
+The relationship between p and me based on the graph is a symmetric upside down arch centered at .5
+
+## Success-failure conditions 
+
+## Exercise 6 
+
+Center: \~.1
+
+Spread: between `r .1 + 2*(sqrt(0.1 * 0.9 / 300))` and `r .1 - 2*(sqrt(0.1 * 0.9 / 300))`
+
+Shape: about normal
+
+## Exercise 7 
+
+The center moves with p.
+
+The spread is largest near p = .5 and smaller as p approaches 0 or 1.
+
+shape is symmetric when p = .5 and skews as it approaches 0 or 1
+
+## Exercise 8 
+
+The center doesn't change.
+
+Spread increase with a larger n
+
+Shape becomes more symmetric and normal as n increases
+
+## Exercise 9 
+
+```{r}
+#| title: training-model
+
+yrbss_sleep <- yrbss |>
+  filter(!is.na(school_night_hours_sleep), !is.na(strength_training_7d)) |>
+  mutate(sleep_10 = ifelse(school_night_hours_sleep == "10+", "10+", "less"),
+         st_daily = ifelse(strength_training_7d == 7, "yes", "no"))
+
+obs_diff <- yrbss_sleep |>
+  specify(st_daily ~ sleep_10, success = "yes") |>
+  calculate(stat = "diff in props", order = c("10+", "less"))
+
+null_dist <- yrbss_sleep |>
+  specify(st_daily ~ sleep_10, success = "yes") |>
+  hypothesize(null = "independence") |>
+  generate(reps = 1000, type = "permute") |>
+  calculate(stat = "diff in props", order = c("10+", "less"))
+
+get_p_value(null_dist, obs_stat = obs_diff, direction = "greater")
+
+
+yrbss_sleep |>
+  specify(st_daily ~ sleep_10, success = "yes") |>
+  generate(reps = 1000, type = "bootstrap") |>
+  calculate(stat = "diff in props", order = c("10+", "less")) |>
+  get_ci(level = 0.95)
+
+(1.95/.01)^2 * .25
+```
+
+according to the results we can determine that those that sleep more than 10 hours a night are more likely to strength train every day
+
+## Exercise 10
+
+One would expect to detect one by chance about 5% of the time.
+
+## Exercise 11
+
+with no idea what p is, we would use .5 as the worst case scenario. Then solve for n in 1.96 \* sqrt(.5\*.5/n) \<= .01 which is n = `r (1.95/.01)^2 * .25`
