@@ -1,0 +1,266 @@
+---
+title: "Inference for numerical data"
+format: pdf
+editor: visual
+---
+
+## Loading packages 
+
+```{r}
+#| title: load-packages
+#| message: False
+
+library(tidyverse)
+library(openintro)
+library(infer)
+
+```
+
+```{r}
+#| title: the-data
+
+
+data('yrbss', package='openintro')
+
+?yrbss
+
+glimpse(yrbss)
+```
+
+## Exercise 1 
+
+There are a total of 13,583 cases in this dataset and each is a high schooler in 9th through 12th grade
+
+```{r}
+#| title: exploration 
+
+summary(yrbss$weight)
+```
+
+## Exercise 2 
+
+We are missing a total of 1004 entries
+
+```{r}
+#| title: plot
+
+yrbss <- yrbss %>% 
+  mutate(physical_3plus = ifelse(yrbss$physically_active_7d > 2, "yes", "no"))
+```
+
+## Exercise 3 
+
+```{r}
+#| title: box-plot
+
+ggplot(yrbss, aes(x = physical_3plus, y = weight)) +
+  geom_boxplot()
+
+```
+
+The boxplot shows that the weights of the more active highschool kids is ever so slightly higher than the non-active ones. However, the data is very close.
+
+```{r}
+#| title: data-manip
+
+yrbss %>%
+  group_by(physical_3plus) %>%
+  summarise(mean_weight = mean(weight, na.rm = TRUE))
+
+```
+
+## Exercise 4
+
+The conditions for inference should be satisfied. The data comes from a simple random source, they should all be independent from one another and the data source is sufficiently large to create a normal distribution when sampling means.
+
+## Exercise 5 
+
+$H_0: \text{Being active does not affect weight} \\ H_a: \text{Being active does affect weight}$
+
+```{r}
+#| title: hypothesis
+
+
+obs_diff <- yrbss %>%
+  drop_na(physical_3plus) %>%
+  specify(weight ~ physical_3plus) %>%
+  calculate(stat = "diff in means", order = c("yes", "no"))
+
+null_dist <- yrbss %>%
+  drop_na(physical_3plus) %>%
+  specify(weight ~ physical_3plus) %>%
+  hypothesize(null = "independence") %>%
+  generate(reps = 1000, type = "permute") %>%
+  calculate(stat = "diff in means", order = c("yes", "no"))
+
+print(obs_diff)
+print(null_dist)
+```
+
+## Exercise 6 
+
+```{r}
+#| title: get-null
+
+null_dist %>%
+  filter(stat >= obs_diff$stat) %>%
+  summarise(n_at_least_obs = n())
+
+```
+
+Based on the above, none of our null permutations has a difference of at least obs_stat
+
+```{r}
+#| title: null-dist 
+
+null_dist %>%
+  get_p_value(obs_stat = obs_diff, direction = "two_sided")
+
+```
+
+## Exercise 7 
+
+```{r}
+#| title: boot-dist
+
+boot_dist <- yrbss %>%
+  drop_na(physical_3plus, weight) %>%
+  specify(weight ~ physical_3plus) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in means", order = c("yes", "no"))
+
+ci <- boot_dist %>%
+  get_confidence_interval(level = 0.95, type = "percentile")
+
+ci
+
+```
+
+## Exercise 8 
+
+```{r}
+#| title: boot-height
+
+boot_height <- yrbss %>%
+  drop_na(height) %>%
+  specify(response = height) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "mean")
+
+ci_height <- boot_height %>%
+  get_confidence_interval(level = 0.95, type = "percentile")
+
+ci_height
+
+```
+
+## Exercise 9
+
+```{r}
+#| title: 90-conf
+
+ci_height_90 <- boot_height %>%
+  get_confidence_interval(level = 0.90, type = "percentile")
+
+ci_height_90
+
+```
+
+The confidence interval seemed to not move.
+
+## Exercise 10 
+
+```{r}
+#| title: heigh-hyp-test
+
+obs_diff_height <- yrbss %>%
+  drop_na(physical_3plus, height) %>%
+  specify(height ~ physical_3plus) %>%
+  calculate(stat = "diff in means", order = c("yes", "no"))
+
+null_dist_height <- yrbss %>%
+  drop_na(physical_3plus, height) %>%
+  specify(height ~ physical_3plus) %>%
+  hypothesize(null = "independence") %>%
+  generate(reps = 1000, type = "permute") %>%
+  calculate(stat = "diff in means", order = c("yes", "no"))
+
+null_dist_height %>%
+  get_p_value(obs_stat = obs_diff_height, direction = "two-sided")
+
+visualize(null_dist_height) +
+  shade_p_value(obs_stat = obs_diff_height, direction = "two-sided")
+```
+
+There seems to be no difference at all when comparing height and activity level.
+
+## Exercise 11
+
+```{r}
+#| title: count
+
+yrbss %>%
+  count(hours_tv_per_school_day)
+
+```
+
+There are a total of 7 options with one extra being an NA value
+
+## Exercise 12
+
+We could ask the question "Is there a difference in mean weight between those who get fewer than 7 hours of sleep on school night and those who get more than 8 hours?" we can use $\alpha$ = .05
+
+```{r}
+#| title: sleep
+
+yrbss <- yrbss %>%
+  mutate(sleep_group = case_when(
+    school_night_hours_sleep %in% c("<5", "5", "6") ~ "under7",
+    school_night_hours_sleep %in% c("7", "8", "9", "10+") ~ "7plus",
+    TRUE ~ NA_character_
+  ))
+
+sleep_data <- yrbss %>% drop_na(sleep_group, weight)
+
+sleep_data %>%
+  group_by(sleep_group) %>%
+  summarise(n = n(), mean_weight = mean(weight), sd_weight = sd(weight))
+
+obs_diff_sleep <- sleep_data %>%
+  specify(weight ~ sleep_group) %>%
+  calculate(stat = "diff in means", order = c("under7", "7plus"))
+
+null_dist_sleep <- sleep_data %>%
+  specify(weight ~ sleep_group) %>%
+  hypothesize(null = "independence") %>%
+  generate(reps = 1000, type = "permute") %>%
+  calculate(stat = "diff in means", order = c("under7", "7plus"))
+
+null_dist_sleep %>%
+  get_p_value(obs_stat = obs_diff_sleep, direction = "two-sided")
+
+visualize(null_dist_sleep) +
+  shade_p_value(obs_stat = obs_diff_sleep, direction = "two-sided")
+
+obs_diff_sleep <- sleep_data %>%
+  specify(weight ~ sleep_group) %>%
+  calculate(stat = "diff in means", order = c("under7", "7plus"))
+
+null_dist_sleep <- sleep_data %>%
+  specify(weight ~ sleep_group) %>%
+  hypothesize(null = "independence") %>%
+  generate(reps = 1000, type = "permute") %>%
+  calculate(stat = "diff in means", order = c("under7", "7plus"))
+
+null_dist_sleep %>%
+  get_p_value(obs_stat = obs_diff_sleep, direction = "two-sided")
+
+boot_sleep <- sleep_data %>%
+  specify(weight ~ sleep_group) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in means", order = c("under7", "7plus"))
+
+get_confidence_interval(boot_sleep, level = 0.95, type = "percentile")
+```
+
+With a ci as wide as this, we can confidently say that the students who sleep less weigh .748 and 2.0 kg more on average than those who regularly sleep more than 7 hours on school nights.
