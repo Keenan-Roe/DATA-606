@@ -1,0 +1,157 @@
+---
+title: "DATA 606 Data Project Proposal"
+author: ""
+format: pdf
+editor: visual
+---
+
+### Data Preparation
+
+The data comes from the World Bank Indicators API, which is free and does not require an API key, so anyone can reproduce this by running the chunk below. We have gotten a lot of practice with APIs and JSON files in 607 and this seems like a logical next step Each indicator is downloaded as JSON for the year 2021, then joined by country code with the World Bank's country list. The country list is also used to remove regional and income-group aggregates such as "World" and "Euro area", which are included in the indicator data but are not countries.
+
+```{r}
+#| label: setup
+#| echo: true
+#| results: hide
+#| warning: false
+#| message: false
+
+# load data
+library(jsonlite)
+library(tidyverse)
+
+year <- 2021
+
+# download one indicator for every country in one year and return it as a tibble 
+get_indicator <- function(code, name) {
+  url <- sprintf(
+    "https://api.worldbank.org/v2/country/all/indicator/%s?format=json&per_page=1000&date=%d",
+    code, year)
+  # the response is a list of two parts: paging info, then the data 
+  fromJSON(url, flatten = TRUE)[[2]] %>%
+    as_tibble() %>%
+    select(iso3 = countryiso3code, value) %>%
+    rename(!!name := value)
+}
+
+# list of countries with their region, used to remove aggregates 
+countries <- fromJSON("https://api.worldbank.org/v2/country?format=json&per_page=400",
+                      flatten = TRUE)[[2]] %>%
+  as_tibble() %>%
+  filter(region.value != "Aggregates") %>%
+  select(iso3 = id, country = name, region = region.value)
+
+# download each indicator 
+life_expectancy <- get_indicator("SP.DYN.LE00.IN", "life_expectancy")
+gdp_per_capita  <- get_indicator("NY.GDP.PCAP.CD", "gdp_per_capita")
+health_spending <- get_indicator("SH.XPD.CHEX.GD.ZS", "health_spending")
+urban_percent   <- get_indicator("SP.URB.TOTL.IN.ZS", "urban_percent")
+
+# join everything into one row per country and keep complete cases 
+world <- countries %>%
+  left_join(life_expectancy, by = "iso3") %>%
+  left_join(gdp_per_capita, by = "iso3") %>%
+  left_join(health_spending, by = "iso3") %>%
+  left_join(urban_percent, by = "iso3") %>%
+  # GDP per capita is very right skewed so a log version is also used 
+  mutate(log_gdp = log10(gdp_per_capita)) %>%
+  drop_na()
+```
+
+### Research question
+
+- Is a country's life expectancy associated with its wealth, how much it spends on health care, and how urban it is, after accounting for world region?
+- The data covers the countries that report all of these measures in 2021, which is not a random sample of countries. The results describe the relationships among these countries in one year and should not be generalized to other years or used to claim that changing one variable would change life expectancy.
+
+### Cases
+
+- Each case is one country in the year 2021.
+- After removing aggregates and countries with missing values for any of the variables, there are **`r nrow(world)`** cases.
+
+### Data collection
+
+- The World Bank compiles these indicators from national statistics offices and international agencies (for example, the UN Population Division for life expectancy and the World Health Organization for health spending) and publishes them through its Indicators API, which returns JSON.
+- Countries that did not report one of the measures for 2021 are dropped, so the final dataset only includes countries with complete data.
+
+### Type of study
+
+- This is an observational study. Countries were not assigned to levels of income or health spending, so any relationships are associations and not evidence of cause and effect.
+
+### Data Source
+
+- The World Bank, *World Development Indicators*, accessed through the World Bank Indicators API v2, <https://api.worldbank.org/v2/>. Documentation: <https://datahelpdesk.worldbank.org/knowledgebase/articles/889392-about-the-indicators-api-documentation>
+- Indicators used: `SP.DYN.LE00.IN` (life expectancy at birth, years), `NY.GDP.PCAP.CD` (GDP per capita, current US\$), `SH.XPD.CHEX.GD.ZS` (current health expenditure, % of GDP), and `SP.URB.TOTL.IN.ZS` (urban population, % of total).
+
+### Describe your variables?
+
+**Response variable**
+
+- `life_expectancy` is the life expectancy at birth in years. It is **quantitative** (numerical, continuous).
+
+**Explanatory variables**
+
+- `log_gdp` is the base 10 log of GDP per capita in US dollars. It is **quantitative** (numerical, continuous). The log is used because GDP per capita is heavily right skewed.
+- `health_spending` is the percent of GDP spent on health. It is **quantitative** (numerical, continuous).
+- `urban_percent` is the percent of the population living in urban areas. It is **quantitative** (numerical, continuous).
+- `region` is the World Bank region of the country. It is **qualitative** (categorical, nominal).
+
+**Planned model**
+
+- A multiple linear regression with `life_expectancy` as the dependent variable and `log_gdp`, `health_spending`, `urban_percent`, and `region` as predictors.
+
+### Relevant summary statistics
+
+```{r}
+#| label: summary-stats
+
+# summary of the numerical variables 
+world %>%
+  select(life_expectancy, gdp_per_capita, health_spending, urban_percent) %>%
+  summary()
+
+# standard deviations 
+world %>%
+  summarise(across(c(life_expectancy, log_gdp, health_spending, urban_percent), sd))
+
+# number of countries and life expectancy for each region 
+world %>%
+  group_by(region) %>%
+  summarise(countries = n(),
+            mean_life_expectancy = round(mean(life_expectancy), 1),
+            median_life_expectancy = round(median(life_expectancy), 1),
+            sd_life_expectancy = round(sd(life_expectancy), 1))
+
+# correlation of life expectancy with each numerical predictor 
+world %>%
+  select(life_expectancy, log_gdp, health_spending, urban_percent) %>%
+  cor() %>%
+  round(2)
+```
+
+```{r}
+#| label: plots
+
+# distribution of the response 
+ggplot(world, aes(life_expectancy)) +
+  geom_histogram(binwidth = 2, fill = "steelblue", color = "white") +
+  labs(x = "Life expectancy (years)", y = "Countries")
+
+# life expectancy against GDP per capita 
+ggplot(world, aes(gdp_per_capita, life_expectancy)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm") +
+  scale_x_log10(labels = scales::dollar) +
+  labs(x = "GDP per capita (log scale)", y = "Life expectancy (years)")
+
+# life expectancy against health spending 
+ggplot(world, aes(health_spending, life_expectancy)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm") +
+  labs(x = "Health spending (% of GDP)", y = "Life expectancy (years)")
+
+# life expectancy by region 
+ggplot(world, aes(reorder(region, life_expectancy, median), life_expectancy)) +
+  geom_boxplot(fill = "lightblue") +
+  coord_flip() +
+  labs(x = NULL, y = "Life expectancy (years)")
+```
